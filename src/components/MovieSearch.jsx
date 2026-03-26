@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useDebounce } from "../hooks/useDebounce";
 import MovieCard from "./MovieCard";
 
-export default function MovieSearch() {
+export default function MovieSearch({ onAdd, shortlistIds = [] }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -73,7 +73,12 @@ export default function MovieSearch() {
       {results.length > 0 && (
         <div className="movie-results">
           {results.map((movie) => (
-            <MovieCard key={movie.imdbId} movie={movie} />
+            <MovieCard
+              key={movie.imdbId}
+              movie={movie}
+              onAdd={onAdd}
+              inShortlist={shortlistIds.includes(movie.imdbId)}
+            />
           ))}
         </div>
       )}

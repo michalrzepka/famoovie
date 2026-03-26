@@ -1,5 +1,101 @@
 import { useState, useEffect } from "react";
 import MovieSearch from "./components/MovieSearch";
+import MovieCard from "./components/MovieCard";
+
+function ShortlistPage() {
+  const [shortlist, setShortlist] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchShortlist();
+  }, []);
+
+  async function fetchShortlist() {
+    try {
+      const res = await fetch("/api/shortlist");
+      const data = await res.json();
+      setShortlist(data.movies || []);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function addToShortlist(movie) {
+    try {
+      const res = await fetch("/api/shortlist", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          imdbId: movie.imdbId,
+          title: movie.title,
+          year: movie.year,
+          poster: movie.poster,
+          plot: movie.plot,
+        }),
+      });
+      if (res.ok) {
+        setShortlist([
+          { imdb_id: movie.imdbId, title: movie.title, year: movie.year, poster: movie.poster, plot: movie.plot },
+          ...shortlist,
+        ]);
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to add");
+      }
+    } catch {
+      alert("Failed to add movie");
+    }
+  }
+
+  async function removeFromShortlist(movie) {
+    const imdbId = movie.imdb_id || movie.imdbId;
+    try {
+      const res = await fetch(`/api/shortlist?imdbId=${encodeURIComponent(imdbId)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setShortlist(shortlist.filter((m) => m.imdb_id !== imdbId));
+      }
+    } catch {
+      alert("Failed to remove movie");
+    }
+  }
+
+  const shortlistIds = shortlist.map((m) => m.imdb_id);
+
+  if (loading) {
+    return <p className="subtle">Loading shortlist...</p>;
+  }
+
+  return (
+    <div className="shortlist-page">
+      <MovieSearch onAdd={addToShortlist} shortlistIds={shortlistIds} />
+      
+      {shortlist.length > 0 && (
+        <>
+          <h2 className="shortlist-heading">My Shortlist</h2>
+          <div className="movie-results">
+            {shortlist.map((movie) => (
+              <MovieCard
+                key={movie.imdb_id}
+                movie={{
+                  imdbId: movie.imdb_id,
+                  title: movie.title,
+                  year: movie.year,
+                  poster: movie.poster,
+                  plot: movie.plot,
+                }}
+                onRemove={removeFromShortlist}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function SettingsPage() {
   const [locations, setLocations] = useState([]);
@@ -265,6 +361,11 @@ export default function App() {
           Home
         </button>
       </li>
+      <li>
+        <button className={page === "shortlist" ? "active" : ""} onClick={() => navigateTo("shortlist")}>
+          Shortlist
+        </button>
+      </li>
       {isAdmin && (
         <li>
           <button className={page === "settings" ? "active" : ""} onClick={() => navigateTo("settings")}>
@@ -321,11 +422,9 @@ export default function App() {
               </aside>
               <main className="card-content">
                 {page === "home" && (
-                  <>
-                    <p className="subtle">Welcome, {user.username}</p>
-                    <MovieSearch />
-                  </>
+                  <p className="subtle">Welcome, {user.username}</p>
                 )}
+                {page === "shortlist" && <ShortlistPage />}
                 {page === "settings" && isAdmin && <SettingsPage />}
               </main>
             </>
