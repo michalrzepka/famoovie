@@ -5,7 +5,9 @@ function jsonResponse(data, status = 200) {
   });
 }
 
-async function handleLogin(request, env) {
+export async function onRequestPost(context) {
+  const { request, env } = context;
+
   let payload;
   try {
     payload = await request.json();
@@ -47,19 +49,3 @@ async function handleLogin(request, env) {
     last_login_at: updatedUser.last_login_at,
   });
 }
-
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
-
-    if (url.pathname === "/api/login" && request.method === "POST") {
-      return handleLogin(request, env);
-    }
-
-    if (url.pathname.startsWith("/api/")) {
-      return jsonResponse({ error: "Not found" }, 404);
-    }
-
-    return env.ASSETS.fetch(request);
-  },
-};

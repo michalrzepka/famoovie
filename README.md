@@ -1,11 +1,11 @@
 # famoovie
 
-Minimal Cloudflare Worker + D1 + React login app.
+Minimal Cloudflare Pages + D1 + React login app.
 
 ## What it includes
 
-- React login page (Vite build, served as static assets by the Worker)
-- Worker API endpoint: `POST /api/login`
+- React login page (Vite build, deployed to Cloudflare Pages)
+- Pages Function API endpoint: `POST /api/login`
 - D1 `users` table
 - Seed user: `admin/admin`
 - On successful login, updates `last_login_at`
@@ -25,26 +25,20 @@ Minimal Cloudflare Worker + D1 + React login app.
    npm run db:migrate:local
    ```
 
-3. Build the React app:
-
-   ```bash
-   npm run build
-   ```
-
-4. Start local dev server:
+3. Start local dev server (builds and runs Pages dev):
 
    ```bash
    npm run dev
    ```
 
-5. Open the local URL printed by Wrangler (usually `http://127.0.0.1:8787`).
-6. Log in with:
+4. Open the local URL printed by Wrangler (usually `http://127.0.0.1:8788`).
+5. Log in with:
    - Username: `admin`
    - Password: `admin`
 
 ## Deploy to Cloudflare
 
-1. Create a D1 database:
+1. Create a D1 database (skip if already exists):
 
    ```bash
    npx wrangler d1 create famoovie
@@ -52,13 +46,19 @@ Minimal Cloudflare Worker + D1 + React login app.
 
 2. Copy the `database_id` from the output and update `wrangler.toml`.
 
-3. Apply migrations to remote D1:
+3. Create a Pages project (skip if already exists):
+
+   ```bash
+   npx wrangler pages project create famoovie --production-branch main
+   ```
+
+4. Apply migrations to remote D1:
 
    ```bash
    npm run db:migrate:remote
    ```
 
-4. Deploy:
+5. Deploy:
 
    ```bash
    npm run deploy
