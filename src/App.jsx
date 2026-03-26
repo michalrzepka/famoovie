@@ -2,42 +2,117 @@ import { useState, useEffect } from "react";
 import MovieSearch from "./components/MovieSearch";
 
 function SettingsPage() {
-  const [locations, setLocations] = useState([{ id: 1, name: "home" }]);
+  const [locations, setLocations] = useState([]);
   const [newLocation, setNewLocation] = useState("");
-  const [users, setUsers] = useState([
-    { id: 1, username: "alice", created_at: "2026-03-26", last_login_at: "2026-03-27 10:15:32", password: "" },
-    { id: 2, username: "bob", created_at: "2026-03-26", last_login_at: null, password: "" },
-  ]);
+  const [users, setUsers] = useState([]);
   const [newUsername, setNewUsername] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState({});
 
-  function addLocation(e) {
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [usersRes, locationsRes] = await Promise.all([
+          fetch("/api/users"),
+          fetch("/api/locations"),
+        ]);
+        const usersData = await usersRes.json();
+        const locationsData = await locationsRes.json();
+        setUsers((usersData.users || []).map((u) => ({ ...u, password: "" })));
+        setLocations(locationsData.locations || []);
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  async function addLocation(e) {
     e.preventDefault();
     if (!newLocation.trim()) return;
-    setLocations([...locations, { id: Date.now(), name: newLocation.trim() }]);
-    setNewLocation("");
+    try {
+      const res = await fetch("/api/locations", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: newLocation.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLocations([...locations, data]);
+        setNewLocation("");
+      } else {
+        alert(data.error || "Failed to add location");
+      }
+    } catch {
+      alert("Failed to add location");
+    }
   }
 
-  function removeLocation(id) {
-    setLocations(locations.filter((l) => l.id !== id));
-  }
-
-  function addUser(e) {
+  async function addUser(e) {
     e.preventDefault();
-    if (!newUsername.trim()) return;
-    const today = new Date().toISOString().split("T")[0];
-    setUsers([...users, { id: Date.now(), username: newUsername.trim(), created_at: today, last_login_at: null, password: "" }]);
-    setNewUsername("");
+    if (!newUsername.trim() || !newPassword) return;
+    try {
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username: newUsername.trim(), password: newPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUsers([...users, { ...data, password: "" }]);
+        setNewUsername("");
+        setNewPassword("");
+      } else {
+        alert(data.error || "Failed to add user");
+      }
+    } catch {
+      alert("Failed to add user");
+    }
   }
 
   function setUserPassword(id, password) {
     setUsers(users.map((u) => (u.id === id ? { ...u, password } : u)));
   }
 
-  function saveUserPassword(id) {
+  async function saveUserPassword(id) {
     const user = users.find((u) => u.id === id);
-    if (user?.password) {
-      alert(`Password for ${user.username} would be saved (no DB yet)`);
+    if (!user?.password) return;
+    setSaving((s) => ({ ...s, [id]: true }));
+    try {
+      const res = await fetch(`/api/users/${id}/password`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password: user.password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUsers(users.map((u) => (u.id === id ? { ...u, password: "" } : u)));
+      } else {
+        alert(data.error || "Failed to update password");
+      }
+    } catch {
+      alert("Failed to update password");
+    } finally {
+      setSaving((s) => ({ ...s, [id]: false }));
     }
+  }
+
+  function formatDate(iso) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString();
+  }
+
+  function formatDateTime(iso) {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  }
+
+  if (loading) {
+    return <p className="subtle">Loading settings...</p>;
   }
 
   return (
@@ -48,7 +123,6 @@ function SettingsPage() {
           {locations.map((loc) => (
             <div key={loc.id} className="settings-item">
               <span>{loc.name}</span>
-              <button className="btn-icon" onClick={() => removeLocation(loc.id)}>×</button>
             </div>
           ))}
         </div>
@@ -79,18 +153,24 @@ function SettingsPage() {
               {users.map((u) => (
                 <tr key={u.id}>
                   <td>{u.username}</td>
-                  <td>{u.created_at}</td>
-                  <td>{u.last_login_at || "—"}</td>
+                  <td>{formatDate(u.created_at)}</td>
+                  <td>{formatDateTime(u.last_login_at)}</td>
                   <td>
                     <input
                       type="password"
-                      placeholder="Password"
+                      placeholder="New password"
                       value={u.password}
                       onChange={(e) => setUserPassword(u.id, e.target.value)}
                     />
                   </td>
                   <td>
-                    <button className="btn-small" onClick={() => saveUserPassword(u.id)}>Save</button>
+                    <button
+                      className="btn-small"
+                      onClick={() => saveUserPassword(u.id)}
+                      disabled={!u.password || saving[u.id]}
+                    >
+                      {saving[u.id] ? "..." : "Save"}
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -99,11 +179,17 @@ function SettingsPage() {
         </div>
         <form className="settings-add" onSubmit={addUser}>
           <input
-            placeholder="New username"
+            placeholder="Username"
             value={newUsername}
             onChange={(e) => setNewUsername(e.target.value)}
           />
-          <button type="submit">Add</button>
+          <input
+            type="password"
+            placeholder="Password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+          <button type="submit" disabled={!newUsername.trim() || !newPassword}>Add</button>
         </form>
       </div>
     </div>
