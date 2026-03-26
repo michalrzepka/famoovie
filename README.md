@@ -4,7 +4,7 @@ Minimal Cloudflare Worker + D1 + React login app.
 
 ## What it includes
 
-- React login page (served as static assets by the Worker)
+- React login page (Vite build, served as static assets by the Worker)
 - Worker API endpoint: `POST /api/login`
 - D1 `users` table
 - Seed user: `admin/admin`
@@ -25,16 +25,44 @@ Minimal Cloudflare Worker + D1 + React login app.
    npm run db:migrate:local
    ```
 
-3. Start local dev server:
+3. Build the React app:
+
+   ```bash
+   npm run build
+   ```
+
+4. Start local dev server:
 
    ```bash
    npm run dev
    ```
 
-4. Open the local URL printed by Wrangler (usually `http://127.0.0.1:8787`).
-5. Log in with:
+5. Open the local URL printed by Wrangler (usually `http://127.0.0.1:8787`).
+6. Log in with:
    - Username: `admin`
    - Password: `admin`
+
+## Deploy to Cloudflare
+
+1. Create a D1 database:
+
+   ```bash
+   npx wrangler d1 create famoovie
+   ```
+
+2. Copy the `database_id` from the output and update `wrangler.toml`.
+
+3. Apply migrations to remote D1:
+
+   ```bash
+   npm run db:migrate:remote
+   ```
+
+4. Deploy:
+
+   ```bash
+   npm run deploy
+   ```
 
 ## Notes
 
