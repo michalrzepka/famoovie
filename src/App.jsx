@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import MovieSearch from "./components/MovieSearch";
 
 function SettingsPage() {
   const [locations, setLocations] = useState([{ id: 1, name: "home" }]);
   const [newLocation, setNewLocation] = useState("");
   const [users, setUsers] = useState([
-    { id: 1, username: "alice", password: "" },
-    { id: 2, username: "bob", password: "" },
+    { id: 1, username: "alice", created_at: "2026-03-26", last_login_at: "2026-03-27 10:15:32", password: "" },
+    { id: 2, username: "bob", created_at: "2026-03-26", last_login_at: null, password: "" },
   ]);
   const [newUsername, setNewUsername] = useState("");
 
@@ -24,16 +24,20 @@ function SettingsPage() {
   function addUser(e) {
     e.preventDefault();
     if (!newUsername.trim()) return;
-    setUsers([...users, { id: Date.now(), username: newUsername.trim(), password: "" }]);
+    const today = new Date().toISOString().split("T")[0];
+    setUsers([...users, { id: Date.now(), username: newUsername.trim(), created_at: today, last_login_at: null, password: "" }]);
     setNewUsername("");
-  }
-
-  function removeUser(id) {
-    setUsers(users.filter((u) => u.id !== id));
   }
 
   function setUserPassword(id, password) {
     setUsers(users.map((u) => (u.id === id ? { ...u, password } : u)));
+  }
+
+  function saveUserPassword(id) {
+    const user = users.find((u) => u.id === id);
+    if (user?.password) {
+      alert(`Password for ${user.username} would be saved (no DB yet)`);
+    }
   }
 
   return (
@@ -60,21 +64,38 @@ function SettingsPage() {
 
       <div className="settings-card">
         <h2>Users</h2>
-        <div className="settings-list">
-          {users.map((u) => (
-            <div key={u.id} className="settings-user">
-              <div className="settings-user-header">
-                <span>{u.username}</span>
-                <button className="btn-icon" onClick={() => removeUser(u.id)}>×</button>
-              </div>
-              <input
-                type="password"
-                placeholder="Set password"
-                value={u.password}
-                onChange={(e) => setUserPassword(u.id, e.target.value)}
-              />
-            </div>
-          ))}
+        <div className="users-table-wrap">
+          <table className="users-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Created</th>
+                <th>Last Login</th>
+                <th>Password</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <td>{u.username}</td>
+                  <td>{u.created_at}</td>
+                  <td>{u.last_login_at || "—"}</td>
+                  <td>
+                    <input
+                      type="password"
+                      placeholder="Password"
+                      value={u.password}
+                      onChange={(e) => setUserPassword(u.id, e.target.value)}
+                    />
+                  </td>
+                  <td>
+                    <button className="btn-small" onClick={() => saveUserPassword(u.id)}>Save</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
         <form className="settings-add" onSubmit={addUser}>
           <input
@@ -93,10 +114,28 @@ export default function App() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [error, setError] = useState("");
   const [user, setUser] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [page, setPage] = useState("home");
+
+  useEffect(() => {
+    async function checkSession() {
+      try {
+        const res = await fetch("/api/me");
+        const data = await res.json();
+        if (data?.username) {
+          setUser(data);
+        }
+      } catch {
+        // ignore - user will see login form
+      } finally {
+        setCheckingSession(false);
+      }
+    }
+    checkSession();
+  }, []);
 
   async function onSubmit(event) {
     event.preventDefault();
@@ -131,7 +170,34 @@ export default function App() {
     setMenuOpen(false);
   }
 
-  const isAdmin = user?.is_admin;
+  const isAdmin = user?.username === "admin";
+
+  const menuContent = (
+    <ul className="menu-list">
+      <li>
+        <button className={page === "home" ? "active" : ""} onClick={() => navigateTo("home")}>
+          Home
+        </button>
+      </li>
+      {isAdmin && (
+        <li>
+          <button className={page === "settings" ? "active" : ""} onClick={() => navigateTo("settings")}>
+            Settings
+          </button>
+        </li>
+      )}
+    </ul>
+  );
+
+  if (checkingSession) {
+    return (
+      <div className="container">
+        <div className="card">
+          <p className="subtle">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -143,20 +209,7 @@ export default function App() {
               <span>Menu</span>
               <button className="btn-icon" onClick={() => setMenuOpen(false)}>×</button>
             </div>
-            <ul className="menu-list">
-              <li>
-                <button className={page === "home" ? "active" : ""} onClick={() => navigateTo("home")}>
-                  Home
-                </button>
-              </li>
-              {isAdmin && (
-                <li>
-                  <button className={page === "settings" ? "active" : ""} onClick={() => navigateTo("settings")}>
-                    Settings
-                  </button>
-                </li>
-              )}
-            </ul>
+            {menuContent}
           </nav>
         </>
       )}
@@ -173,16 +226,22 @@ export default function App() {
           </header>
         )}
 
-        <div className="card">
+        <div className={`card ${user ? "card-with-sidebar" : ""}`}>
           {user ? (
             <>
-              {page === "home" && (
-                <>
-                  <p className="subtle">Welcome, {user.username}</p>
-                  <MovieSearch />
-                </>
-              )}
-              {page === "settings" && isAdmin && <SettingsPage />}
+              <aside className="card-sidebar">
+                <div className="sidebar-title">FaMovie</div>
+                {menuContent}
+              </aside>
+              <main className="card-content">
+                {page === "home" && (
+                  <>
+                    <p className="subtle">Welcome, {user.username}</p>
+                    <MovieSearch />
+                  </>
+                )}
+                {page === "settings" && isAdmin && <SettingsPage />}
+              </main>
             </>
           ) : (
             <>

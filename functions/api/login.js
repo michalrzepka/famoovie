@@ -44,8 +44,20 @@ export async function onRequestPost(context) {
     .bind(userResult.id)
     .first();
 
-  return jsonResponse({
-    username: updatedUser.username,
-    last_login_at: updatedUser.last_login_at,
-  });
+  const maxAge = 365 * 24 * 60 * 60; // 365 days in seconds
+  const cookie = `user_id=${userResult.id}; Max-Age=${maxAge}; Path=/; HttpOnly; SameSite=Lax`;
+
+  return new Response(
+    JSON.stringify({
+      username: updatedUser.username,
+      last_login_at: updatedUser.last_login_at,
+    }),
+    {
+      status: 200,
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "set-cookie": cookie,
+      },
+    }
+  );
 }
