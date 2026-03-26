@@ -2,7 +2,21 @@ import { useState, useEffect } from "react";
 import MovieSearch from "./components/MovieSearch";
 import MovieCard from "./components/MovieCard";
 
-function ShortlistPage() {
+function Toast({ message, type, onClose }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className={`toast toast-${type}`}>
+      <span>{message}</span>
+      <button className="toast-close" onClick={onClose}>×</button>
+    </div>
+  );
+}
+
+function ShortlistPage({ showToast }) {
   const [shortlist, setShortlist] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,12 +54,13 @@ function ShortlistPage() {
           { imdb_id: movie.imdbId, title: movie.title, year: movie.year, poster: movie.poster, plot: movie.plot },
           ...shortlist,
         ]);
+        showToast("Added to shortlist", "success");
       } else {
         const data = await res.json();
-        alert(data.error || "Failed to add");
+        showToast(data.error || "Failed to add", "error");
       }
     } catch {
-      alert("Failed to add movie");
+      showToast("Failed to add movie", "error");
     }
   }
 
@@ -57,9 +72,10 @@ function ShortlistPage() {
       });
       if (res.ok) {
         setShortlist(shortlist.filter((m) => m.imdb_id !== imdbId));
+        showToast("Removed from shortlist", "success");
       }
     } catch {
-      alert("Failed to remove movie");
+      showToast("Failed to remove movie", "error");
     }
   }
 
@@ -97,7 +113,7 @@ function ShortlistPage() {
   );
 }
 
-function SettingsPage() {
+function SettingsPage({ showToast }) {
   const [locations, setLocations] = useState([]);
   const [newLocation, setNewLocation] = useState("");
   const [users, setUsers] = useState([]);
@@ -139,11 +155,12 @@ function SettingsPage() {
       if (res.ok) {
         setLocations([...locations, data]);
         setNewLocation("");
+        showToast("Location added", "success");
       } else {
-        alert(data.error || "Failed to add location");
+        showToast(data.error || "Failed to add location", "error");
       }
     } catch {
-      alert("Failed to add location");
+      showToast("Failed to add location", "error");
     }
   }
 
@@ -161,11 +178,12 @@ function SettingsPage() {
         setUsers([...users, { ...data, password: "" }]);
         setNewUsername("");
         setNewPassword("");
+        showToast("User added", "success");
       } else {
-        alert(data.error || "Failed to add user");
+        showToast(data.error || "Failed to add user", "error");
       }
     } catch {
-      alert("Failed to add user");
+      showToast("Failed to add user", "error");
     }
   }
 
@@ -186,11 +204,12 @@ function SettingsPage() {
       const data = await res.json();
       if (res.ok) {
         setUsers(users.map((u) => (u.id === id ? { ...u, password: "" } : u)));
+        showToast("Password updated", "success");
       } else {
-        alert(data.error || "Failed to update password");
+        showToast(data.error || "Failed to update password", "error");
       }
     } catch {
-      alert("Failed to update password");
+      showToast("Failed to update password", "error");
     } finally {
       setSaving((s) => ({ ...s, [id]: false }));
     }
@@ -301,6 +320,11 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [page, setPage] = useState("home");
+  const [toast, setToast] = useState(null);
+
+  function showToast(message, type = "success") {
+    setToast({ message, type, key: Date.now() });
+  }
 
   useEffect(() => {
     async function checkSession() {
@@ -388,6 +412,15 @@ export default function App() {
 
   return (
     <>
+      {toast && (
+        <Toast
+          key={toast.key}
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       {user && (
         <>
           <div className={`menu-overlay ${menuOpen ? "open" : ""}`} onClick={() => setMenuOpen(false)} />
@@ -424,8 +457,8 @@ export default function App() {
                 {page === "home" && (
                   <p className="subtle">Welcome, {user.username}</p>
                 )}
-                {page === "shortlist" && <ShortlistPage />}
-                {page === "settings" && isAdmin && <SettingsPage />}
+                {page === "shortlist" && <ShortlistPage showToast={showToast} />}
+                {page === "settings" && isAdmin && <SettingsPage showToast={showToast} />}
               </main>
             </>
           ) : (
