@@ -1,0 +1,14 @@
+{
+  "name": "famoovie",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local",
+    "db:migrate:local": "wrangler d1 migrations apply famoovie --local",
+    "db:migrate:remote": "wrangler d1 migrations apply famoovie --remote"
+  },
+  "devDependencies": {
+    "wrangler": "^4.8.0"
+  }
+}

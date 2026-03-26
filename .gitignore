@@ -1,0 +1,6 @@
+/.cursor
+JOURNAL.md
+.env
+node_modules
+.wrangler
+.vscode

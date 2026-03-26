@@ -1,0 +1,13 @@
+name = "famoovie"
+main = "worker.js"
+compatibility_date = "2026-03-26"
+
+[assets]
+directory = "./public"
+not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "famoovie"
+database_id = "1a473000-4a88-4418-ac34-ea9b9462b90d"
+preview_database_id = "00000000-0000-0000-0000-000000000000"
