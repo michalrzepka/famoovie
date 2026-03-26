@@ -12,7 +12,7 @@ body {
 
 .container {
   width: 100%;
-  max-width: 480px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 16px;
   min-height: 100vh;
@@ -232,15 +232,215 @@ button:disabled {
   font-size: 13px;
   color: #cbd5e1; /* slate-300 */
   line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 @media (min-width: 640px) {
   .movie-plot {
     font-size: 14px;
-    -webkit-line-clamp: 4;
   }
+}
+
+/* App header with hamburger */
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 22px;
+}
+
+.hamburger {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  margin: 0;
+}
+
+.hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: #f1f5f9;
+  border-radius: 1px;
+}
+
+.hamburger:hover span {
+  background: #10b981;
+}
+
+/* Menu overlay */
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  z-index: 100;
+}
+
+.menu-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Menu drawer */
+.menu-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 260px;
+  background: #0f172a;
+  border-right: 1px solid #1e293b;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-drawer.open {
+  transform: translateX(0);
+}
+
+.menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #1e293b;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 12px 0;
+}
+
+.menu-list li button {
+  width: 100%;
+  text-align: left;
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  margin: 0;
+  border-radius: 0;
+}
+
+.menu-list li button:hover {
+  background: #1e293b;
+  color: #f1f5f9;
+}
+
+.menu-list li button.active {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border-left: 3px solid #10b981;
+}
+
+.btn-icon {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  margin: 0;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+.btn-icon:hover {
+  background: #1e293b;
+  color: #f1f5f9;
+}
+
+/* Settings page */
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.settings-card {
+  background: #1e293b;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.settings-card h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.settings-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #0f172a;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.settings-user {
+  padding: 10px 12px;
+  background: #0f172a;
+  border-radius: 6px;
+}
+
+.settings-user-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.settings-user input {
+  padding: 8px 10px;
+  font-size: 14px;
+  margin-top: 0;
+}
+
+.settings-add {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-add input {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 14px;
+  margin-top: 0;
+}
+
+.settings-add button {
+  margin-top: 0;
+  padding: 10px 16px;
+  font-size: 14px;
 }
