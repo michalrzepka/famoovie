@@ -2,6 +2,265 @@ import { useState, useEffect } from "react";
 import MovieSearch from "./components/MovieSearch";
 import MovieCard from "./components/MovieCard";
 
+function HomePage({ user, showToast }) {
+  const [night, setNight] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [shortlist, setShortlist] = useState([]);
+  const [showShortlist, setShowShortlist] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [beginningVoting, setBeginningVoting] = useState(false);
+
+  const userId = user?.id;
+  const isHost = night?.isHost;
+  const isDraft = night?.status === "draft";
+
+  useEffect(() => {
+    fetchUpcomingNight();
+  }, []);
+
+  async function fetchUpcomingNight() {
+    try {
+      const res = await fetch("/api/movie-nights");
+      const data = await res.json();
+      const nights = data.movieNights || [];
+      const upcoming = nights.find((n) => n.status !== "completed");
+      
+      if (upcoming) {
+        const detailRes = await fetch(`/api/movie-nights/${upcoming.id}`);
+        const detail = await detailRes.json();
+        setNight(detail);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchShortlist() {
+    try {
+      const res = await fetch("/api/shortlist");
+      const data = await res.json();
+      setShortlist(data.movies || []);
+    } catch {
+      // ignore
+    }
+  }
+
+  async function addMovieToNight(movie) {
+    if (!night) return;
+    try {
+      const res = await fetch(`/api/movie-nights/${night.id}/movies`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          imdbId: movie.imdbId || movie.imdb_id,
+          title: movie.title,
+          year: movie.year,
+          poster: movie.poster,
+          plot: movie.plot,
+        }),
+      });
+      if (res.ok) {
+        const newMovie = {
+          imdb_id: movie.imdbId || movie.imdb_id,
+          title: movie.title,
+          year: movie.year,
+          poster: movie.poster,
+          plot: movie.plot,
+        };
+        setNight({ ...night, movies: [...(night.movies || []), newMovie] });
+        showToast("Movie added to night", "success");
+      } else {
+        const data = await res.json();
+        showToast(data.error || "Failed to add movie", "error");
+      }
+    } catch {
+      showToast("Failed to add movie", "error");
+    }
+  }
+
+  async function removeMovieFromNight(imdbId) {
+    if (!night) return;
+    try {
+      const res = await fetch(`/api/movie-nights/${night.id}/movies?imdbId=${encodeURIComponent(imdbId)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setNight({ ...night, movies: night.movies.filter((m) => m.imdb_id !== imdbId) });
+        showToast("Movie removed", "success");
+      }
+    } catch {
+      showToast("Failed to remove movie", "error");
+    }
+  }
+
+  async function beginVoting() {
+    if (!night) return;
+    setBeginningVoting(true);
+    try {
+      const res = await fetch(`/api/movie-nights/${night.id}/begin-voting`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setNight({ ...night, status: "voting" });
+        showToast("Voting has begun!", "success");
+      } else {
+        showToast(data.error || "Failed to begin voting", "error");
+      }
+    } catch {
+      showToast("Failed to begin voting", "error");
+    } finally {
+      setBeginningVoting(false);
+    }
+  }
+
+  function handleShowShortlist() {
+    fetchShortlist();
+    setShowShortlist(true);
+    setShowSearch(false);
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    return d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  }
+
+  const nightMovieIds = (night?.movies || []).map((m) => m.imdb_id);
+  const canBeginVoting = isDraft && isHost && night?.movies?.length === night?.movie_count;
+
+  if (loading) {
+    return <p className="subtle">Loading...</p>;
+  }
+
+  if (!night) {
+    return (
+      <div className="home-page">
+        <p className="subtle">No movie night scheduled.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="home-page">
+      <div className="upcoming-night">
+        <h2>Upcoming Movie Night</h2>
+        <div className="night-banner">
+          <div className="night-banner-date">{formatDate(night.event_date)}</div>
+          <div className="night-banner-meta">
+            <span>{night.location_name}</span>
+            <span className="separator">•</span>
+            <span>Hosted by {night.host_name}</span>
+          </div>
+        </div>
+
+        {isDraft && !isHost && (
+          <p className="subtle host-preparing">Host is selecting movies...</p>
+        )}
+
+        {isDraft && isHost && (
+          <div className="host-controls">
+            <div className="host-header">
+              <h3>Your Selection ({night.movies?.length || 0}/{night.movie_count})</h3>
+              <div className="host-actions">
+                <button className="btn-secondary" onClick={handleShowShortlist}>
+                  Add from Shortlist
+                </button>
+                <button className="btn-secondary" onClick={() => { setShowSearch(true); setShowShortlist(false); }}>
+                  Search Movies
+                </button>
+              </div>
+            </div>
+
+            {night.movies?.length > 0 && (
+              <div className="movie-results draft-movies">
+                {night.movies.map((movie) => (
+                  <MovieCard
+                    key={movie.imdb_id}
+                    movie={{
+                      imdbId: movie.imdb_id,
+                      title: movie.title,
+                      year: movie.year,
+                      poster: movie.poster,
+                      plot: movie.plot,
+                    }}
+                    onRemove={() => removeMovieFromNight(movie.imdb_id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {canBeginVoting && (
+              <button 
+                className="btn-begin-voting" 
+                onClick={beginVoting}
+                disabled={beginningVoting}
+              >
+                {beginningVoting ? "Starting..." : "Begin Voting"}
+              </button>
+            )}
+
+            {showShortlist && (
+              <div className="add-from-section">
+                <h4>Add from Shortlist</h4>
+                {shortlist.length === 0 ? (
+                  <p className="subtle">Your shortlist is empty.</p>
+                ) : (
+                  <div className="movie-results">
+                    {shortlist.filter((m) => !nightMovieIds.includes(m.imdb_id)).map((movie) => (
+                      <MovieCard
+                        key={movie.imdb_id}
+                        movie={{
+                          imdbId: movie.imdb_id,
+                          title: movie.title,
+                          year: movie.year,
+                          poster: movie.poster,
+                          plot: movie.plot,
+                        }}
+                        onAdd={() => addMovieToNight(movie)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {showSearch && (
+              <div className="add-from-section">
+                <h4>Search Movies</h4>
+                <MovieSearch 
+                  onAdd={addMovieToNight} 
+                  shortlistIds={nightMovieIds}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {night.status === "voting" && night.movies?.length > 0 && (
+          <div className="voting-movies">
+            <h3>Movies</h3>
+            <div className="movie-results">
+              {night.movies.map((movie) => (
+                <MovieCard
+                  key={movie.imdb_id}
+                  movie={{
+                    imdbId: movie.imdb_id,
+                    title: movie.title,
+                    year: movie.year,
+                    poster: movie.poster,
+                    plot: movie.plot,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Toast({ message, type, onClose }) {
   useEffect(() => {
     const timer = setTimeout(onClose, 3000);
@@ -108,6 +367,172 @@ function ShortlistPage({ showToast }) {
             ))}
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+function MovieNightsPage({ showToast }) {
+  const [nights, setNights] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ locationId: "", hostId: "", movieCount: 3, eventDate: "" });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [nightsRes, locationsRes, usersRes] = await Promise.all([
+          fetch("/api/movie-nights"),
+          fetch("/api/locations"),
+          fetch("/api/users"),
+        ]);
+        const [nightsData, locationsData, usersData] = await Promise.all([
+          nightsRes.json(),
+          locationsRes.json(),
+          usersRes.json(),
+        ]);
+        setNights(nightsData.movieNights || []);
+        setLocations(locationsData.locations || []);
+        setUsers(usersData.users || []);
+      } catch {
+        showToast("Failed to load data", "error");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  async function createNight(e) {
+    e.preventDefault();
+    if (!form.locationId || !form.hostId || !form.eventDate) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/movie-nights", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const location = locations.find((l) => l.id === form.locationId);
+        const host = users.find((u) => u.id === form.hostId);
+        setNights([{ ...data, location_name: location?.name, host_name: host?.username }, ...nights]);
+        setForm({ locationId: "", hostId: "", movieCount: 3, eventDate: "" });
+        setShowForm(false);
+        showToast("Movie night created", "success");
+      } else {
+        showToast(data.error || "Failed to create", "error");
+      }
+    } catch {
+      showToast("Failed to create movie night", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteNight(id) {
+    if (!confirm("Delete this movie night?")) return;
+    try {
+      const res = await fetch(`/api/movie-nights/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setNights(nights.filter((n) => n.id !== id));
+        showToast("Movie night deleted", "success");
+      } else {
+        const data = await res.json();
+        showToast(data.error || "Failed to delete", "error");
+      }
+    } catch {
+      showToast("Failed to delete movie night", "error");
+    }
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return "—";
+    return new Date(dateStr).toLocaleDateString();
+  }
+
+  function statusBadge(status) {
+    const colors = { draft: "bg-yellow-600", voting: "bg-emerald-600", completed: "bg-slate-600" };
+    return <span className={`status-badge ${colors[status] || ""}`}>{status}</span>;
+  }
+
+  if (loading) {
+    return <p className="subtle">Loading movie nights...</p>;
+  }
+
+  return (
+    <div className="movie-nights-page">
+      <div className="page-header">
+        <h2>Movie Nights</h2>
+        <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
+          {showForm ? "Cancel" : "+ New Night"}
+        </button>
+      </div>
+
+      {showForm && (
+        <form className="create-night-form" onSubmit={createNight}>
+          <label>
+            Location
+            <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })}>
+              <option value="">Select location...</option>
+              {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+          </label>
+          <label>
+            Host
+            <select value={form.hostId} onChange={(e) => setForm({ ...form, hostId: e.target.value })}>
+              <option value="">Select host...</option>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.username}</option>)}
+            </select>
+          </label>
+          <label>
+            Movie Count
+            <input
+              type="number"
+              min="1"
+              max="10"
+              value={form.movieCount}
+              onChange={(e) => setForm({ ...form, movieCount: parseInt(e.target.value) || 3 })}
+            />
+          </label>
+          <label>
+            Date
+            <input
+              type="date"
+              value={form.eventDate}
+              onChange={(e) => setForm({ ...form, eventDate: e.target.value })}
+            />
+          </label>
+          <button type="submit" disabled={saving || !form.locationId || !form.hostId || !form.eventDate}>
+            {saving ? "Creating..." : "Create Movie Night"}
+          </button>
+        </form>
+      )}
+
+      {nights.length === 0 ? (
+        <p className="subtle">No movie nights yet.</p>
+      ) : (
+        <div className="nights-list">
+          {nights.map((night) => (
+            <div key={night.id} className="night-card">
+              <div className="night-info">
+                <div className="night-date">{formatDate(night.event_date)}</div>
+                <div className="night-details">
+                  <span>{night.location_name}</span>
+                  <span className="separator">•</span>
+                  <span>Host: {night.host_name}</span>
+                  <span className="separator">•</span>
+                  {statusBadge(night.status)}
+                </div>
+              </div>
+              <button className="btn-danger btn-small" onClick={() => deleteNight(night.id)}>Delete</button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -391,11 +816,18 @@ export default function App() {
         </button>
       </li>
       {isAdmin && (
-        <li>
-          <button className={page === "settings" ? "active" : ""} onClick={() => navigateTo("settings")}>
-            Settings
-          </button>
-        </li>
+        <>
+          <li>
+            <button className={page === "movie-nights" ? "active" : ""} onClick={() => navigateTo("movie-nights")}>
+              Movie Nights
+            </button>
+          </li>
+          <li>
+            <button className={page === "settings" ? "active" : ""} onClick={() => navigateTo("settings")}>
+              Settings
+            </button>
+          </li>
+        </>
       )}
     </ul>
   );
@@ -454,10 +886,9 @@ export default function App() {
                 {menuContent}
               </aside>
               <main className="card-content">
-                {page === "home" && (
-                  <p className="subtle">Welcome, {user.username}</p>
-                )}
+                {page === "home" && <HomePage user={user} showToast={showToast} />}
                 {page === "shortlist" && <ShortlistPage showToast={showToast} />}
+                {page === "movie-nights" && isAdmin && <MovieNightsPage showToast={showToast} />}
                 {page === "settings" && isAdmin && <SettingsPage showToast={showToast} />}
               </main>
             </>

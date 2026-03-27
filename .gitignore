@@ -5,4 +5,5 @@ JOURNAL.md
 node_modules
 .wrangler
 .vscode
+.plan
 dist

@@ -37,6 +37,7 @@ export async function onRequestGet(context) {
   }
 
   return jsonResponse({
+    id: userId,
     username: user.username,
     last_login_at: user.last_login_at,
   });
