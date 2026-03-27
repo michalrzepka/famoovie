@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS locations (
 
 -- Seed admin user (UUID generated once)
 INSERT OR IGNORE INTO users (id, username, password)
-VALUES ('a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'admin', 'n');
+VALUES ('a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'admin', '1234');
 
 -- Seed default location
 INSERT OR IGNORE INTO locations (id, name)

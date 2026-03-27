@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import MovieSearch from "./components/MovieSearch";
 import MovieCard from "./components/MovieCard";
+import Pinpad from "./components/Pinpad";
+import Toast from "./components/Toast";
 
 function HomePage({ user, showToast }) {
   const [night, setNight] = useState(null);
@@ -231,6 +233,7 @@ function HomePage({ user, showToast }) {
                 <MovieSearch 
                   onAdd={addMovieToNight} 
                   shortlistIds={nightMovieIds}
+                  showToast={showToast}
                 />
               </div>
             )}
@@ -257,20 +260,6 @@ function HomePage({ user, showToast }) {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function Toast({ message, type, onClose }) {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  return (
-    <div className={`toast toast-${type}`}>
-      <span>{message}</span>
-      <button className="toast-close" onClick={onClose}>×</button>
     </div>
   );
 }
@@ -346,7 +335,7 @@ function ShortlistPage({ showToast }) {
 
   return (
     <div className="shortlist-page">
-      <MovieSearch onAdd={addToShortlist} shortlistIds={shortlistIds} />
+      <MovieSearch onAdd={addToShortlist} shortlistIds={shortlistIds} showToast={showToast} />
       
       {shortlist.length > 0 && (
         <>
@@ -700,6 +689,7 @@ function SettingsPage({ showToast }) {
                       type="password"
                       placeholder="New password"
                       value={u.password}
+                      autoComplete="off"
                       onChange={(e) => setUserPassword(u.id, e.target.value)}
                     />
                   </td>
@@ -717,16 +707,18 @@ function SettingsPage({ showToast }) {
             </tbody>
           </table>
         </div>
-        <form className="settings-add" onSubmit={addUser}>
+        <form className="settings-add" onSubmit={addUser} autoComplete="off">
           <input
             placeholder="Username"
             value={newUsername}
+            autoComplete="off"
             onChange={(e) => setNewUsername(e.target.value)}
           />
           <input
             type="password"
             placeholder="Password"
             value={newPassword}
+            autoComplete="off"
             onChange={(e) => setNewPassword(e.target.value)}
           />
           <button type="submit" disabled={!newUsername.trim() || !newPassword}>Add</button>
@@ -741,7 +733,6 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
-  const [error, setError] = useState("");
   const [user, setUser] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [page, setPage] = useState("home");
@@ -768,22 +759,23 @@ export default function App() {
     checkSession();
   }, []);
 
-  async function onSubmit(event) {
+  async function onSubmit(event, pin) {
     event.preventDefault();
-    setError("");
     setLoading(true);
+
+    const pinToUse = pin || password;
 
     try {
       const response = await fetch("/api/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password: pinToUse }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data?.error || "Login failed");
+        showToast(data?.error || "Login failed", "error");
         setLoading(false);
         return;
       }
@@ -791,7 +783,7 @@ export default function App() {
       setUser(data);
       setLoading(false);
     } catch {
-      setError("Could not reach API");
+      showToast("Could not reach API", "error");
       setLoading(false);
     }
   }
@@ -895,29 +887,25 @@ export default function App() {
           ) : (
             <>
               <h1>Login</h1>
-              <form onSubmit={onSubmit}>
-                <label>
-                  Username
-                  <input
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    autoComplete="username"
-                  />
-                </label>
-                <label>
-                  Password
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="current-password"
-                  />
-                </label>
-                <button type="submit" disabled={loading}>
-                  {loading ? "Signing in..." : "Sign in"}
-                </button>
-              </form>
-              {error && <p className="error">{error}</p>}
+              <label>
+                Username
+                <input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="username"
+                />
+              </label>
+              {username && (
+                <Pinpad
+                  label="Enter PIN"
+                  onSubmit={(pin) => {
+                    setPassword(pin);
+                    onSubmit({ preventDefault: () => {} }, pin);
+                  }}
+                  disabled={loading}
+                />
+              )}
+              {loading && <p className="subtle">Signing in...</p>}
             </>
           )}
         </div>

@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "deploy": "npm run build && wrangler pages deploy",
     "db:migrate:local": "wrangler d1 migrations apply famoovie --local",
-    "db:migrate:remote": "wrangler d1 migrations apply famoovie --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply famoovie --remote",
+    "db:sync": "npm run db:migrate:local && wrangler d1 export famoovie --remote --no-schema --table=users --table=locations --table=shortlist --table=movie_nights --table=movie_night_movies --output=.d1-sync.sql && wrangler d1 execute famoovie --local --file=.d1-sync.sql"
   },
   "dependencies": {
     "react": "^18.2.0",

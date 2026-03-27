@@ -7,3 +7,4 @@ node_modules
 .vscode
 .plan
 dist
+.d1-sync.sql

@@ -2,11 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { useDebounce } from "../hooks/useDebounce";
 import MovieCard from "./MovieCard";
 
-export default function MovieSearch({ onAdd, shortlistIds = [] }) {
+export default function MovieSearch({ onAdd, shortlistIds = [], showToast }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const debouncedQuery = useDebounce(query, 400);
   const abortRef = useRef(null);
 
@@ -23,7 +22,6 @@ export default function MovieSearch({ onAdd, shortlistIds = [] }) {
       abortRef.current = new AbortController();
 
       setLoading(true);
-      setError("");
 
       try {
         const res = await fetch(
@@ -33,7 +31,7 @@ export default function MovieSearch({ onAdd, shortlistIds = [] }) {
         const data = await res.json();
 
         if (!res.ok) {
-          setError(data?.error || "Search failed");
+          showToast?.(data?.error || "Search failed", "error");
           setResults([]);
           return;
         }
@@ -49,7 +47,7 @@ export default function MovieSearch({ onAdd, shortlistIds = [] }) {
         setResults(details.filter((d) => !d.error));
       } catch (err) {
         if (err.name !== "AbortError") {
-          setError("Search failed");
+          showToast?.("Search failed", "error");
         }
       } finally {
         setLoading(false);
@@ -69,7 +67,6 @@ export default function MovieSearch({ onAdd, shortlistIds = [] }) {
         className="search-input"
       />
       {loading && <p className="subtle">Searching...</p>}
-      {error && <p className="error">{error}</p>}
       {results.length > 0 && (
         <div className="movie-results">
           {results.map((movie) => (
@@ -82,7 +79,7 @@ export default function MovieSearch({ onAdd, shortlistIds = [] }) {
           ))}
         </div>
       )}
-      {!loading && !error && query.length >= 2 && results.length === 0 && (
+      {!loading && query.length >= 2 && results.length === 0 && (
         <p className="subtle">No movies found</p>
       )}
     </div>
